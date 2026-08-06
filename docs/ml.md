@@ -82,3 +82,110 @@ yolo detect predict model=runs/detect/train-2/weights/best.pt source=0
 - These limitations were observed during testing on additional images outside the training and test datasets.
 - Using the full 1,000+ image dataset would likely improve the model's ability to generalise. However, due to time and computational constraints, a subset of 400 images was used.
 - Despite these limitations, the detector performed accurately enough for the final application.
+
+
+## 3. Emotion Recognition  
+### 3.1 Images as Data  
+- Essentially an image is a matrix of numbers (pixel values)
+- Grayscale image:
+    - Height × Width
+- RGB Image: 
+    - They have depth -> RGB 
+    - Height × Width x Channels 
+    - Channels = 3 for RGB (Red, Green, Blue) 
+
+### 3.2 Convolutional Neural Networks 
+- CNNs are neural networks designed for visual data 
+- They learn patterns directly from raw pixels by applying convolution operations
+
+- Consisting of two main parts:
+    1. Feature Extractor
+        - Convolution layers
+        - Activation functions (ReLU)
+        - Pooling layers
+        - Trades: Spacial resolution for richer feature representation 
+    2. Classifier
+        - Flatten layer
+        - Fully connected (Linear) layers
+        - Maps the extracted features to the final emotion classes.
+
+### 3.3 Convolution Operation
+[Source](https://www.youtube.com/watch?v=YGILT182T6w)
+#### Main Idea: 
+- Images contain spacial structure and local context -> which pixels are near eachother is important 
+- Slide kernel across the image -> create feature maps 
+#### Kernel 
+- One kernel detects one kind of pattern, for multiple features -> mutliple kernels 
+- Each slide independently, each yeild there own 2d output -> feature map
+- Output size: H' = H - k + 1  
+
+#### Multi-channel input: 
+- One layer of pixel values: gray scale image H * w 
+- Real images have depth RGB -> H*W*C (c is number of channels)
+- Now kernels need to match that depth -> k*k*c volume and expands through all channels 
+- Kernel still slides through spacial dimensions, but at each position processes all channels at once producing 2d output H' * W' 
+- And when using multiple kernels k' of them -> stack all the ouputs to get H' * W' * C'  
+
+#### Multiple CNN Layers
+- In CNN we dont dont this only once, we do it numerous times, the ouput of one layer becomes input of another -> Pooling layers progressively reduce the spatial dimensions while convolution layers learn increasingly complex features.  
+- At the end we take final compacted volume and flatten it into a vector -> a learned feature vector a representation that the network has learned to extract from raw pixels
+#### Pooling: 
+- After each convultional layer we apply pooling to shrink spacial dimension 
+- number of channels remains unchanged 
+- Network tradeoff: spacial resolution for richer feature representations 
+#### Why CNN work: 
+- The assumptions that make the CNNs work for visual data(inductive biases): 
+- Local Connectivity: 
+    - Each output neuron only looks at small local patch of input 
+    - region covered by kernel 
+- Translation Equivarience: 
+    - If you shift input by x pixels the output shifts x pixels 
+    - Perserves spacial realtionships!  
+- Parameter Sharing: 
+    - Learn one set of weights that works everywhere 
+    - reduces parameters and makes network easier to train 
+- Translation invariance: 
+    - Position doesnt matter for final prediciton  
+- Hierarchical features: 
+    - Each layer builds from previous one -> yielding powerful representation
+
+### 3.4 How Nueral Networks Learn - Gradient Descend
+[Source](https://www.youtube.com/watch?v=IHZwWFHWa-w) 
+#### Forward Pass
+- Each pixelvalue (on the grid/image) becomes an in the input layer of the network
+- Each activation of the nuerons in the following hiden layers are calculated by the weighted sum of all the activations in previous layer plus the bias. 
+    - Compose that sum for example by the sigmoid squish-ification 
+- weight and biases control what the networka actually does -> how it learns is by tweaking these values 
+#### Learning Process
+- Want: and algorithm 
+    - show a bunch of training data (with labels)
+    - it adjusts its weights and biases enough to improve its performance on training data
+    - -> goal: generalizes images beyond that training data 
+#### Weights and Biases
+- Essentially calculus: finding minimia of certain function 
+    - Each nueron is connected to all the nueron in previous layers 
+    - weights define its activation are like the strengths of those connections -> larger weights mean that input has more influence on nuerons activation 
+    - Bias is just another learnable parameter (we perhaps can think of it as indiction of wether that nueon is active or inactive) 
+    - start with random wights and baises 
+#### Cost Function
+- -> define cost function 
+    - what is the cost of the difference between "bad" result and expected -> one way is Mean Sqaured Error, add up squares of differences between bad output and what you want it to be
+    - small when good, large when bad 
+    - then we find the average cost over all the tens and thousands of training examples -> defines how well the network classifies
+    - describes how good or bad those biases/weights are essentially  
+    - we need to tell it how to change from this to better the algorithm -> we want to minimize the cost function
+#### Gradient Descent
+- where do we step from the current weight to minimize error and improve the cost function results (by miniziming cost -> better performance on all samples)
+    - Algorithm for computing this gradient efficiently -> Backpropagation 
+    - Gradient descent: finding valley in graph 
+    - Gradient Vector of cost function 
+        - encodes relative importance of each weight and bais 
+        - which changes to wich weights have more impact persay 
+#### Backpropagation
+- Algorithm for computing this gradient efficiently -> Backpropagation 
+
+#### Weight Update
+- how weights actually change: new_weight = old_weight - learning_rate × gradient
+
+### Dataset 
+- [source](https://www.kaggle.com/datasets/shuvoalok/raf-db-dataset/data):
