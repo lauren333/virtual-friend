@@ -1,3 +1,9 @@
+""" 
+Inspects the RAF-DB dataset structure and contents. 
+Displays the dataset folders, emotion class directories, 
+and example image filenames to verify the dataset is loaded correctly. 
+"""
+
 import os
 import kagglehub
 import pandas as pd
@@ -6,8 +12,7 @@ def main():
     # path = kagglehub.dataset_download("shuvoalok/raf-db-dataset")
     # print(f"Dataset location: \n {path} \n")
     path = "/Users/laurenpalega/.cache/kagglehub/datasets/shuvoalok/raf-db-dataset/versions/2"
-
-    #reminder: once done delete cache rm -rf ~/.cache/kagglehub 
+    #reminder: once done traning/testing model delete cache rm -rf ~/.cache/kagglehub 
 
     #Folder structure -> OUTPUT: ['train_labels.csv', 'test_labels.csv', 'DATASET'] 
     print("\nTop level files:")

@@ -1,3 +1,9 @@
+""" 
+Convolutional neural network for facial expression classification.
+Defines the EmotionCNN architecture used to extract visual features 
+and classify input images into seven emotion classes. 
+"""
+
 import torch
 import torch.nn as nn
 import torchvision 

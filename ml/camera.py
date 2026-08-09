@@ -1,3 +1,8 @@
+""" 
+Handles real-time camera input for the computer vision pipeline. 
+Captures and processes webcam frames for use with the face detection and emotion classification models.
+"""
+
 import numpy as np
 import cv2 as cv #import the opencv library 
 from ultralytics import YOLO
