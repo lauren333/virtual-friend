@@ -121,7 +121,8 @@ yolo detect predict model=runs/detect/train-2/weights/best.pt source=0
 
 #### Multi-channel input: 
 - One layer of pixel values: gray scale image H * w 
-- Real images have depth RGB -> H*W*C (c is number of channels)
+- Real images have depth RGB -> H*W*C (c is number of channels) -> a 3D tensor 
+- **Tensor** is a multidimensional array of numerical values; a 3D tensor can be visualized as a stack of matrices. 
 - Now kernels need to match that depth -> k*k*c volume and expands through all channels 
 - Kernel still slides through spacial dimensions, but at each position processes all channels at once producing 2d output H' * W' 
 - And when using multiple kernels k' of them -> stack all the ouputs to get H' * W' * C'  
@@ -156,36 +157,70 @@ yolo detect predict model=runs/detect/train-2/weights/best.pt source=0
 - Each activation of the nuerons in the following hiden layers are calculated by the weighted sum of all the activations in previous layer plus the bias. 
     - Compose that sum for example by the sigmoid squish-ification 
 - weight and biases control what the networka actually does -> how it learns is by tweaking these values 
+- In our CNN, images are passed through the network in batches rather than one image at a time. 
+    - With batch_size = 32, the input is a 4D tensor: (32, 3, 128, 128) 
+    - The 32 images are processed together using the same CNN weights, but each image is still processed independently. 
+- The forward pass produces the model's raw outputs, called logits. 
+   - In our model, there are 7 logits for each image, one for each emotion class.  
 #### Learning Process
 - Want: and algorithm 
     - show a bunch of training data (with labels)
     - it adjusts its weights and biases enough to improve its performance on training data
     - -> goal: generalizes images beyond that training data 
+- Training happens repeatedly for each batch: 
+    - Forward pass -> send in images + labels -> produce predictions/logits
+    - Calculate loss -> measure how wrong the predictions are
+    - Backpropagation -> calculate gradient showing how the weights and biases should change (which direction to move to reduce loss)
+    - Optimizer step -> update the weights and biases (gradient calc the direction of change and learning rate of the step)
+    - Update statistics -> track loss and accuracy 
+- This process repeats for every batch in the training dataset. 
+- Once the entire training dataset has been processed once it is one epoch. 
+- Model repeats this process for multiple epochs so it can incrementally improve its predictions.
 #### Weights and Biases
 - Essentially calculus: finding minimia of certain function 
     - Each nueron is connected to all the nueron in previous layers 
     - weights define its activation are like the strengths of those connections -> larger weights mean that input has more influence on nuerons activation 
-    - Bias is just another learnable parameter (we perhaps can think of it as indiction of wether that nueon is active or inactive) 
-    - start with random wights and baises 
+    - Bias is just another learnable parameter 
+    - Start with random weights and baises at first batch
+    - The weights and biases are the parameters that the optimizer changes during training. 
+    - The criterion/loss function itself does not get updated. 
+        - It is a fixed formula used to measure how wrong the model's current predictions are.
+        - The loss is recalculated each batch using the same criterion, but with the model's newly updated weights and biases. 
+        - Which is how the model improves 
 #### Cost Function
 - -> define cost function 
-    - what is the cost of the difference between "bad" result and expected -> one way is Mean Sqaured Error, add up squares of differences between bad output and what you want it to be
-    - small when good, large when bad 
-    - then we find the average cost over all the tens and thousands of training examples -> defines how well the network classifies
-    - describes how good or bad those biases/weights are essentially  
-    - we need to tell it how to change from this to better the algorithm -> we want to minimize the cost function
+    - What is the cost of the difference between "bad" result and expected -> one way is Mean Sqaured Error, add up squares of differences between bad output and what you want it to be
+    - Small when good, large when bad 
+    - Then we find the average cost over all the tens and thousands of training examples -> defines how well the network classifies
+    - Describes how good or bad those biases/weights are essentially  
+    - We need to tell it how to change from this to better the algorithm -> we want to minimize the cost function
+- In my implementation, we use CrossEntropyLoss rather than Mean Squared Error. 
+    - It compares the model's logits with the correct class labels and produces a single loss value. 
+    - Lower loss generally means the model's predictions are improving. 
 #### Gradient Descent
-- where do we step from the current weight to minimize error and improve the cost function results (by miniziming cost -> better performance on all samples)
+- Where do we step from the current weight to minimize error and improve the cost function results (by miniziming cost -> better performance on all samples)
     - Algorithm for computing this gradient efficiently -> Backpropagation 
     - Gradient descent: finding valley in graph 
     - Gradient Vector of cost function 
-        - encodes relative importance of each weight and bais 
-        - which changes to wich weights have more impact persay 
+        - Encodes relative importance of each weight and bais 
+        - Which changes to wich weights have more impact persay 
+- Moreover, gradient tells us which direction each weight and bias should move to reduce the loss. 
+- The learning rate controls how large the step is when changing the parameters. 
+    - A smaller learning rate makes smaller updates. 
 #### Backpropagation
-- Algorithm for computing this gradient efficiently -> Backpropagation 
-
+- Algorithm for computing this gradient efficiently
+- After the loss is calculated, backpropagation works backwards through the network to calculate the gradient of the loss with respect to each trainable weight and bias. 
+- The gradient tells the optimizer how each parameter should be adjusted to reduce the loss.  
+- Uses the gradients (calculated by backpropagation) and the learning rate to update the model's weights and biases. 
+predictions. 
 #### Weight Update
-- how weights actually change: new_weight = old_weight - learning_rate × gradient
-
+- How weights actually change: new_weight = old_weight - learning_rate × gradient
+- In my implementation, the Adam optimizer performs the parameter updates: optimizer.step() 
+- Overall Idea: 
+    - Loss: how wrong the current predictions are 
+    - Gradient: which direction to reduce loss (to improve results)
+    - Learning rate: controls how large the change should be (the step of the gradient)
+    - Optimizer: applies the update to the weights and biases 
+- Repeating these updates across batches and epochs allows the model to gradually learn better visual patterns and improve its 
 ### Dataset 
 - [source](https://www.kaggle.com/datasets/shuvoalok/raf-db-dataset/data):
