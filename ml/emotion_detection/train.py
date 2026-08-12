@@ -60,6 +60,7 @@ for epoch in range(EPOCHS):
         optimizer.zero_grad() # PyTorch accumulates gradients by default, so each batch we clear it
 
         # FOWARD PASS
+        # CNN outputs a 2D tensor  -> 32 images × 7 emotion logits
         outputs = model(images) # Send images through CNN -> forward() in emotion_cnn.py 
 
         # CALCULATE LOSS 
@@ -79,6 +80,7 @@ for epoch in range(EPOCHS):
         running_loss += loss.item() # coverts tensor containing loss to a num
 
         # CALCULATE PREDICITONS
+        # Look across dimension 1 of tensor (the 7 emotion classes) 
         # 7 logits for each emotion -> largest logic represents predicted class
         # Using _ for largest logit bc we really only need the predicted index -> aka corresponding class label
         # OUTPUT: largest value and index of value (associated emotion class) 

@@ -1,7 +1,6 @@
 """ 
 Inspects the RAF-DB dataset structure and contents. 
-Displays the dataset folders, emotion class directories, 
-and example image filenames to verify the dataset is loaded correctly. 
+Displays the dataset folders, emotion class directories, and example image filenames. 
 """
 
 import os

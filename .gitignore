@@ -35,6 +35,11 @@ ml/face_detection/runs/
 ml/face_detection/datasets/
 ml/face_detection/yolo11n.pt
 
+# =====================
+# CNN / ML 2 
+# =====================
+ml/emotion_detection/emotion_cnn.pth
+
 # (optional)
 # Ignore trained weights too
 # *.pt

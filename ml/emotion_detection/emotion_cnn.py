@@ -32,7 +32,7 @@ class EmotionCNN(nn.Module):
         # Activation Function -> performs f(x) = max(0,x) for output of conv1 -> put 0 if less than 0
         self.relu1 = nn.ReLU()
         # Pooling: 
-        # GOAL 2: trade spatial resolution for richer feature representation 
+        # GOAL 2: Trade spatial resolution for richer feature representation 
         self.pool1 = nn.MaxPool2d(
             # 2x2 kernel/slider 
             kernel_size = 2,
