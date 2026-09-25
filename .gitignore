@@ -38,6 +38,7 @@ ml/face_detection/yolo11n.pt
 # =====================
 # CNN / ML 2 
 # =====================
+ml/emotion_detection/checkpoints/ 
 ml/emotion_detection/emotion_cnn.pth
 
 # (optional)
