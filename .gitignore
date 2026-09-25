@@ -43,3 +43,8 @@ ml/emotion_detection/emotion_cnn.pth
 # (optional)
 # Ignore trained weights too
 # *.pt
+
+ml/emotion_detectionV2/
+ravdess_cropped_frames_128px/
+emotion_cnn_baseline.pth 
+emotion_cnn_raf_affectnet.pth

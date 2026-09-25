@@ -8,8 +8,9 @@ import cv2 as cv #import the opencv library
 import torch
 from ultralytics import YOLO
 from emotion_detection.emotion_cnn import EmotionCNN
-from emotion_detection.data.dataset_loader import train_dataset
+# from emotion_detection.data.dataset_loader import train_dataset
 from torchvision import transforms
+from collections import deque, Counter
 
 # 1. LOAD MODELS ------
 # --- Facial Detection Model --- 
@@ -20,34 +21,43 @@ facedetect_model = YOLO("/Users/laurenpalega/Documents/virtualfriend/ml/face_det
 emotion_model = EmotionCNN() 
 # Load the parameters learned during training (weights and baises)
 emotion_model.load_state_dict(  
-    torch.load( "/Users/laurenpalega/Documents/virtualfriend/ml/emotion_detection/emotion_cnn.pth", map_location="cpu")
+    torch.load( "/Users/laurenpalega/Documents/virtualfriend/ml/emotion_detection/emotion_cnn_raf_affectnet_best.pth", map_location="cpu")
 )
 # Put model in evaluation mode 
 emotion_model.eval() 
 
 # 2. MAPPING EMOTION LABELS ------
 # Convert the CNN's predicted class index into associated emotion.
-raf_emotions = { "1": "Surprise", "2": "Fear", "3": "Disgust", "4": "Happiness", "5": "Sadness", "6": "Anger", "7": "Neutral" }
-#  Create Dictionary (key: an index from 0-6, value: corresponding emotion name) 
-idx_to_emotion = {  
-    index: raf_emotions[class_name] # Update value to be corresponding emotions string representation 
-    for class_name, index in train_dataset.class_to_idx.items() # train_dataset.class_to_idx is a dict (keys: 1-7, value: 0-6) 
-}
+# raf_emotions = { "1": "Surprise", "2": "Fear", "3": "Disgust", "4": "Happiness", "5": "Sadness", "6": "Anger", "7": "Neutral" }
+# #  Create Dictionary (key: an index from 0-6, value: corresponding emotion name) 
+# idx_to_emotion = {  
+#     index: raf_emotions[class_name] # Update value to be corresponding emotions string representation 
+#     for class_name, index in train_dataset.class_to_idx.items() # train_dataset.class_to_idx is a dict (keys: 1-7, value: 0-6) 
+# }
+idx_to_emotion = { 0: "Surprise", 1: "Fear", 2: "Disgust", 3: "Happiness", 4: "Sadness", 5: "Anger", 6: "Neutral" }
 
 # 3. EMOTION PREPROCESSING ------
 emotion_transform = transforms.Compose([ # Transform webcam frame to tensor shape to meet CNN architecure 
     transforms.ToPILImage(), # Converts the OpenCV/NumPy image into a PIL image.
     transforms.Resize((128, 128)), 
-    transforms.ToTensor() 
+    transforms.ToTensor(),
+    transforms.Normalize(
+        mean=[0.485, 0.456, 0.406],
+        std=[0.229, 0.224, 0.225]
+    )
 ])
+
+emotion_history = deque(maxlen=5)
 
 def predict_emotion(face):
     """
     Preprocess one detected face and use the trained CNN to predict its emotion.
     """
+    # Convert BGR (OpenCV) -> RGB to match training data (PIL/ImageFolder)
+    face_rgb = cv.cvtColor(face, cv.COLOR_BGR2RGB)
     # Preprocess the image of face to be the correct shape for the CNN to process
     # Returns transformed tensor
-    face_tensor = emotion_transform(face)
+    face_tensor = emotion_transform(face_rgb)
 
     # Add batch dimension as CNN expects image input in this format 
     # (3, 128, 128) -> (1, 3, 128, 128)
@@ -81,6 +91,9 @@ def process_face(frame, face_detection_result):
 
         # Pass face into predict emotion which runs data through CNN 
         emotion = predict_emotion(face)
+        # Majority vote on recent emotions 
+        emotion_history.append(emotion)
+        stable_emotion = Counter(emotion_history).most_common(1)[0][0] 
 
         # Draw face bounding box on frame
         cv.rectangle(
@@ -92,7 +105,8 @@ def process_face(frame, face_detection_result):
         )
         
         # Create emotion label
-        label = f"Emotion: {emotion}"
+        # label = f"Emotion: {emotion}"
+        label = f"Emotion: {stable_emotion}"
 
         # Draw emotion label above face
         cv.putText(
