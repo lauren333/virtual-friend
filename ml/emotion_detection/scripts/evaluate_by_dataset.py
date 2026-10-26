@@ -9,7 +9,7 @@ PROJECT_ROOT = Path(__file__).resolve().parents[3]
 sys.path.append(str(PROJECT_ROOT))
 from ml.emotion_detection.model.emotion_cnn import EmotionCNN
 from ml.emotion_detection.data.dataset_loader import raf_test_loader, affectnet_test_loader
-from ml.emotion_detection.config import (BEST_MODEL_PATH, EMOTION_NAMES, NUM_CLASSES)
+from ml.emotion_detection.config import (BEST_MODEL_PATH2, EMOTION_NAMES, NUM_CLASSES)
 from ml.emotion_detection.utils import get_device, plot_confusion_matrix
 
 # --- Evaluate Model ---
@@ -82,7 +82,7 @@ def main():
 
     # --- Model ---
     model = EmotionCNN()
-    model.load_state_dict(torch.load(BEST_MODEL_PATH, map_location=device))
+    model.load_state_dict(torch.load("/Users/laurenpalega/Documents/virtualfriend/ml/emotion_detection/checkpoints/emotion_cnn_raf_affectnet_WeightedRandomSampler.pth", map_location=device))
     model = model.to(device)
     model.eval() # Eval Mode.
 

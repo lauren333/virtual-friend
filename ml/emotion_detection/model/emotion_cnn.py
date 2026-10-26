@@ -78,9 +78,7 @@ class EmotionCNN(nn.Module):
             kernel_size=3,
             padding=1
         )
-
         self.relu4 = nn.ReLU()
-
         self.pool3 = nn.MaxPool2d(
             kernel_size=2,
             stride=2

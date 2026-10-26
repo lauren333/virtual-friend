@@ -12,19 +12,22 @@ import torch
 import torch.nn as nn # NN building blocks 
 import torch.optim as optim # For optimization functions 
 import torch
+import sys
+from pathlib import Path
+PROJECT_ROOT = Path(__file__).resolve().parents[3]
+sys.path.insert(0, str(PROJECT_ROOT))
 from ml.emotion_detection.model.emotion_cnn import EmotionCNN
-from data.dataset_loader import train_loader, val_loader, test_loader
-from ml.emotion_detection.config import (EMOTION_NAMES, EPOCHS, LEARNING_RATE, NUM_CLASSES)
+from ml.emotion_detection.data.dataset_loader import train_loader, val_loader, test_loader, train_dataset
 from ml.emotion_detection.utils import (get_device, plot_confusion_matrix)
 
 # --- Training Configuration ---- 
-from config import EMOTION_NAMES, EPOCHS, LEARNING_RATE, NUM_CLASSES
+from ml.emotion_detection.config import (EMOTION_NAMES, EPOCHS, LEARNING_RATE, NUM_CLASSES)
 # NUM_CLASSES = 7, One logit / each emotion class 
 # LEARNING_RATE = 0.001, How large the optimizer's parameter updates -> how much to update weights by -> weight' = weight - learning_rate * gradient 
 # EPOCHS = 50, Num of complete passes through training set
-EXPERIMENT_MODEL_PATH = ("/Users/laurenpalega/Documents/virtualfriend/ml/emotion_detection/checkpoints/emotion_cnn_raf_affectnet_experiment.pth")
+EXPERIMENT_MODEL_PATH = ("/Users/laurenpalega/Documents/virtualfriend/ml/emotion_detection/checkpoints/emotion_cnn_raf_affectnet_WeightedRandomSampler.pth")
 
-def train_model(model, criterion, optimizer, device):
+def train_model(model, criterion, optimizer, scheduler, device):
     """
     Train the CNN and save the best model based on validation accuracy.
     """
@@ -103,6 +106,7 @@ def train_model(model, criterion, optimizer, device):
             best_val_accuracy = val_accuracy
             torch.save(model.state_dict(), EXPERIMENT_MODEL_PATH)
             print(f"New best validation accuracy: {best_val_accuracy:.2f}% — saved.")
+        scheduler.step()   
     return best_val_accuracy
 
 def evaluate_model(model, device):
@@ -179,16 +183,19 @@ def main():
     # Criterion is fixed formula for calculating error, what does change is weights and biases, each batch calculates new loss using this same criteria 
     criterion = nn.CrossEntropyLoss() # Compare Logits of CNN with correct class labels, CrossEntropyLoss() handles normalization
 
-    # --- Optimizer ---- 
-    # Updating these parameters each batch based off the measured loss and backprop to compute gradients is how predicitons improve 
-    optimizer = optim.Adam(
-        model.parameters(), # (biases, weights) 
-        lr=LEARNING_RATE # By how much to update those parameters
-    )
+    # # --- Optimizer ---- 
+    # # Updating these parameters each batch based off the measured loss and backprop to compute gradients is how predicitons improve 
+    # optimizer = optim.Adam(
+    #     model.parameters(), # (biases, weights) 
+    #     lr=LEARNING_RATE # By how much to update those parameters
+    # )
 
-    # --- Train Model --- 
-    best_val_accuracy = train_model( model, criterion, optimizer, device )
+    # # --- Train Model --- 
+    # best_val_accuracy = train_model( model, criterion, optimizer, device )
 
+    optimizer = optim.AdamW(model.parameters(), lr=LEARNING_RATE, weight_decay=1e-4)
+    scheduler = optim.lr_scheduler.CosineAnnealingLR(optimizer, T_max=EPOCHS)
+    best_val_accuracy = train_model(model, criterion, optimizer, scheduler, device)
     # --- Load the BEST checkpoint (by validation accuracy) before final evaluation ---
     # The loop above saved it to disk each time val accuracy improved 
     # We need to actually load it back into `model` now.

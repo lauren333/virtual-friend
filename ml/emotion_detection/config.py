@@ -12,6 +12,7 @@ EMOTION_NAMES = ["Surprise", "Fear", "Disgust", "Happiness", "Sadness", "Anger",
 
 # --- Training ---
 LEARNING_RATE = 0.001
+# EPOCHS = 50
 EPOCHS = 50
 BATCH_SIZE = 32
 
@@ -21,3 +22,4 @@ IMAGE_SIZE = 128
 # --- Model checkpoints --- 
 BEST_MODEL_PATH = "/Users/laurenpalega/Documents/virtualfriend/ml/emotion_detection/checkpoints/emotion_cnn_raf_affectnet_best.pth"
 BEST_MODEL_ONLY_RAFDB = "/Users/laurenpalega/Documents/virtualfriend/ml/emotion_detection/checkpoints/emotion_cnn_rafdb_best.pth"
+BEST_MODEL_PATH2 = "/Users/laurenpalega/Documents/virtualfriend/ml/emotion_detection/checkpoints/emotion_cnn_raf_affectnet_experiment.pth"

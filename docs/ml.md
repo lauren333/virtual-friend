@@ -8,7 +8,7 @@
 
 ---
 ## Table of Contents
-1. [Project Context and Overview](#1-project-context-and-overview)
+1. [Project  Overview](#1-project-overview)
 2. [Computer Vision Background](#2-computer-vision-background)
 3. [Face Detection (YOLO11n)](#3-face-detection-yolo11n)
 4. [Model 1: Static-Image CNN](#4-model-1-static-image-cnn)
@@ -17,11 +17,8 @@
 7. [Return to Model 1: Expanded Dataset](#7-return-to-model-1-expanded-dataset)
 ---
 
-# 1. Project Context and Overview
-## 1.1 Context
-This document covers the **machine learning component** of a larger project: a small AI companion that reacts to the user's emotions. The ML system is the part that "sees" the user, detecting a face and recognising which emotion it is showing. This write-up documents that component only.
-
-## 1.2 Project Goal
+# 1. Project Overview
+## 1.1 Project Goal
 Develop a computer vision system capable of recognising human facial emotions.
 
 The project began with a static-image convolutional neural network (CNN), which classified individual facial images into seven emotion classes. The project was then extended to video by combining a CNN with a gated recurrent unit (GRU), allowing the model to process sequences of facial frames and learn temporal information.
@@ -33,7 +30,8 @@ The project therefore explores two related approaches:
 2. **Video-based emotion recognition** using a CNN + GRU.
 
 The development process involved experimenting with model architecture, data augmentation, dropout, class imbalance, sequence length, and dataset composition.
-## 1.3 System pipeline
+
+## 1.2 System pipeline
 ```
 Webcam / video → Face detection (YOLO11n) → Face crop → Emotion model → Emotion prediction
 ```
@@ -575,16 +573,16 @@ The classes are unbalanced: Surprise, Disgust, and Neutral have half as many vid
 - Results suggest that increasing architectural complexity did not solve the underlying problem. The relatively small number of training videos and actors, combined with the actor-independent split, limited the model's ability to generalise. 
 
 ---
-# 7. Return to Model 1: Expanded Dataset
+# 7. Return to Model 1
 ## 7.1 Motivation
 After experimenting with the video model, I began to question whether the additional temporal modelling was actually necessary for the final application. The video model introduced additional complexity and required a much smaller video dataset. Its performance was also substantially below the static-image CNN. I therefore decided to return to the original static-image approach and investigate whether improving the dataset could produce better results using a simpler and more established approach for emotion recognition.
 
 AffectNet is especially useful for the weakest classes. Its test split has 305 Fear and 321 Disgust images, compared with 74 and 160 in the RAF-DB test split.
 
-## 7.2 Dataset
+## 7.2 Experiment 7: Expanding Dataset 
 [AffectNet YOLO Format Dataset](https://www.kaggle.com/datasets/fatihkgg/affectnet-yolo-format/data) (Kaggle). It is organised for object detection, with a label file per image, so it had to be converted to the folder-per-class layout used for the RAF-DB classifier.
 
-## 7.3 Preprocessing pipeline
+### 7.2.1 Preprocessing pipeline
 I wrote a preprocessing script that prepares AffectNet to match the RAF-DB CNN:
 1. **Remove Contempt.** AffectNet has an eighth class (Contempt) that RAF-DB does not, so those images are skipped.
 2. **Remap class IDs** to the project's seven-class order (below).
@@ -593,7 +591,7 @@ I wrote a preprocessing script that prepares AffectNet to match the RAF-DB CNN:
 5. **Check for duplicate images across splits** by hashing the decoded pixel values of every image (SHA-256) and flagging any hash that appears in more than one of train, validation, and test.
 6. **Print the final class distribution** for each split to verify the result.
 
-### Removing duplicate leaks
+### 7.2.2 Removing duplicate leaks
 Duplicate images that appear in both a training split and an evaluation split would let the model "memorise" test images and inflate its scores. The check found **107 duplicates**, which were removed from the validation and test splits so the training data was left untouched.
 
 | Split | Before | After | Removed |
@@ -602,8 +600,7 @@ Duplicate images that appear in both a training split and an evaluation split wo
 | Validation | 5,406 | 5,335 | 71 |
 | Test | 2,755 | 2,719 | 36 |
 
-
-## 7.4 Combined dataset
+### 7.2.3 Combined dataset
 | Split | RAF-DB | AffectNet | Combined |
 | ----- | -----: | --------: | -------: |
 | Training pool | 12,271 | 15,105 | 27,376 |
@@ -613,7 +610,7 @@ Duplicate images that appear in both a training split and an evaluation split wo
 
 Validation images are held out from the pooled training data (about 10%). The RAF-DB and AffectNet test sets are kept separate, so the model can be evaluated on each dataset individually as well as on the combined set.
 
-## 7.5 Training
+## 7.2.4 Training
 The static-image CNN was trained for **50 epochs** on the combined training set (770 batches of 32 per epoch). After each epoch the model was evaluated on the validation set, and the checkpoint with the best validation accuracy was saved (`emotion_cnn_raf_affectnet.pth`) and used for the final test.
 
 | Epoch | Train loss | Train acc. | Validation acc. |
@@ -629,7 +626,7 @@ The static-image CNN was trained for **50 epochs** on the combined training set 
 
 Training and validation accuracy stay close together for the whole run (about 71.8% versus 70.1%), so unlike the video model this one is **not overfitting**. Both curves were still creeping upward at epoch 50, which suggests the model is limited by capacity or training time rather than by memorisation.
 
-## 7.6 Results
+## 7.2.5 Results
 Best checkpoint (validation accuracy 70.44%), evaluated on each test set:
 | Test set | Images | Accuracy |
 | -------- | -----: | -------: |
@@ -662,8 +659,198 @@ Per-class recall:
 | Neutral | 74.9% | 75.88% | +1.0 |
 | **Overall** | **77.61%** | **79.30%** | **+1.7** |
 
-### Findings
+**Findings**
 - Adding AffectNet raised RAF-DB test accuracy from **77.61% to 79.30%**, the best result of the project so far.
 - The largest gains were on the weakest and least-represented classes: Disgust (+5.0 points, 8 more images correct) and Sadness (+4.2 points).
 - Fear recall on RAF-DB did not change, and Surprise and Anger dipped slightly.
 **Best result to date: 79.30% test accuracy on RAF-DB** (deeper CNN trained on RAF-DB + AffectNet), up from 77.61% with RAF-DB alone.
+
+## 7.3 Experiment 8: Class-Weighted Loss + Label Smoothing
+**Change:** CrossEntropyLoss with inverse-frequency class weights + label_smoothing=0.1
+
+**Hypothesis:** Would improve Disgust/Fear recall (RAF-DB's weakest classes)
+
+**Combined test set comparison (vs. unweighted baseline):**
+| Emotion   | Unweighted | Weighted | Change |
+|-----------|-----------:|---------:|-------:|
+| Surprise  | 72.76%     | 71.00%   | -1.8   |
+| Fear      | 67.55%     | 65.70%   | -1.9   |
+| Disgust   | 51.56%     | 53.43%   | +1.9   |
+| Happiness | 91.86%     | 84.47%   | -7.4   |
+| Sadness   | 66.18%     | 63.13%   | -3.1   |
+| Anger     | 64.74%     | 65.49%   | +0.8   |
+| Neutral   | 72.26%     | 82.47%   | +10.2  |
+| **Overall** | **74.29%** | **73.32%** | **-1.0** |
+
+**Findings**
+- Traded a large Happiness drop for gains concentrated in Neutral, not the target classes (Fear barely moved, slightly worse).
+- Net accuracy dropped. 
+
+## 7.4 Experiment 9: 80 Epochs 
+Same architecture and loss as the 50-epoch run (from section 7.2), EPOCHS increased 50→80.
+
+**Test set comparison (50 vs. 80 epochs):**
+| Test set | 50 epochs | 80 epochs | Change |
+| -------- | --------: | --------: | -----: |
+| RAF-DB only | **79.30%** | 77.15% | **-2.15** |
+| AffectNet only | 67.85% | 68.40% | +0.55 |
+| Combined | 74.29% | 76.53% | +2.24 |
+
+**RAF-DB per-class recall, 50 vs. 80 epochs:**
+| Emotion | 50 epochs | 80 epochs | Change |
+| ------- | --------: | --------: | -----: |
+| Surprise | 78.72% | 72.34% | -6.38 |
+| Fear | 51.35% | 47.30% | -4.05 |
+| Disgust | 35.62% | 28.75% | **-6.87** |
+| Happiness | 92.66% | 84.81% | **-7.85** |
+| Sadness | 76.15% | 69.67% | -6.48 |
+| Anger | 62.35% | 67.90% | +5.55 |
+| Neutral | 75.88% | 88.24% | **+12.36** |
+| **Overall** | **79.30%** | **77.15%** | **-2.15** |
+
+**Findings**
+- Despite higher combined-test accuracy, RAF-DB-only accuracy **dropped** 79.30%→77.15%. Nearly every class fell except Anger and Neutral, which surged.
+- AffectNet is ~55% of the combined training set and stylistically different from RAF-DB (web-scraped vs. curated). Longer training let the model drift toward patterns that help on AffectNet's "in-the-wild" test set (+0.55%) and the combined set (+2.24%), at RAF-DB's expense.
+- REJECTED as a new best. Checkpoint for this experiment is `emotion_cnn_raf_affectnet_80ep.pth` (best val: 71.98%)
+
+# 7.5 "Experiment" 10: Clean Validation Split
+**Change:** Validation images were previously scored with random augmentation
+applied. Validation now uses the same held-out split without augmentation
+
+| Setup | Optimizer | LR schedule | Validation | Best val acc. | Combined test acc. | Macro recall |
+| ----- | --------- | ----------- | ---------- | ------------: | -----------------: | -----------: |
+| Baseline | Adam | none | augmented | 70.44% | 74.29% | 69.6% |
+| **Experiment 1** | Adam | none | clean (no aug.) | 73.62% (epoch 49) | **74.51%** | 68.7% |
+
+Per-class recall, combined test:
+| Emotion | Baseline | Experiment 1 | Change |
+| ------- | -------: | -----------: | -----: |
+| Surprise | 72.76% | 607 / 793 (76.54%) | +3.78 |
+| Fear | 67.55% | 219 / 379 (57.78%) | −9.77 |
+| Disgust | 51.56% | 205 / 481 (42.62%) | −8.94 |
+| Happiness | 91.86% | 1,434 / 1,584 (90.53%) | −1.33 |
+| Sadness | 66.18% | 531 / 754 (70.42%) | +4.24 |
+| Anger | 64.74% | 355 / 536 (66.23%) | +1.49 |
+| Neutral | 72.26% | 715 / 930 (76.88%) | +4.62 |
+
+**Takeaways:** Test accuracy changed by only +0.22 points, which is within sampling
+noise (about ±0.6), so the clean validation split did not measurably change test
+performance. Its value is methodological: validation scores are now reliable for
+checkpoint selection. Per-class results shifted toward the frequent classes
+(Surprise, Sadness, Neutral up; Fear and Disgust down), which is why macro recall
+dipped slightly while overall accuracy held. Without a learning-rate schedule,
+validation accuracy fluctuated between roughly 71% and 74% in the final epochs,
+so the selected checkpoint is partly subject to chance.
+
+## 7.6 Experiment 10: AdamW + Cosine Annealing
+**Objective:** Investigate whether changing the optimizer to AdamW and introducing cosine annealing improved the CNN's generalisation compared with the Adam baseline
+
+| Metric                  | Adam Baseline | AdamW + Cosine | Change |
+| ----------------------- | ------------: | -------------: | -----: |
+| Best validation         | 73.62% | **76.29%** | +2.67 |
+| Combined test accuracy  | 74.51% | **77.08%** | +2.57 |
+| RAF-DB test accuracy    | 79.30% | **81.91%** | +2.61 |
+| AffectNet test accuracy | 67.85% | **70.87%** | +3.02 |
+
+**Per-class recall — Combined Test**
+| Emotion   | Adam Baseline | AdamW + Cosine | Change |
+| --------- | ------------: | -------------: | -----: |
+| Surprise  | 76.54% | **78.69%** | +2.15 |
+| Fear      | 57.78% | **66.49%** | +8.71 |
+| Disgust   | 42.62% | **55.72%** | +13.10 |
+| Happiness | 90.53% | **91.73%** | +1.20 |
+| Sadness   | 70.42% | **71.49%** | +1.07 |
+| Anger     | **66.23%** | 65.30% | −0.93 |
+| Neutral   | 76.88% | **77.42%** | +0.54 |
+
+
+**Findings**
+- AdamW + cosine annealing improved combined test accuracy by **2.57** and validation accuracy by **2.67** compared with the Adam baseline
+- Performance improved on both datasets, with RAF-DB increasing by **2.61** and AffectNet by **3.02 pp**
+- The largest per-class improvements were **Disgust (+13.10 )** and **Fear (+8.71)**
+- Happiness remained the strongest class at **91.73%**, while Disgust remained the weakest at **55.72%**
+- Anger was the only class to show a small decrease (**−0.93**)
+
+**Ablation check**
+| Configuration | Best validation | Combined test accuracy |
+| ---------------------------- | ---------------: | ---------------------: |
+| AdamW only                   | 72.82% | 74.78% |
+| Adam + cosine annealing only | **75.70%** | **76.07%** |
+
+The individual tests suggest that **cosine annealing contributed more to the improvement than AdamW alone**, while the combination produced the highest overall performance
+
+
+### Experiment: Oversampling (WeightedRandomSampler)
+
+**Change:** Added a WeightedRandomSampler to train_loader, weighting each image inversely to its class frequency in the training pool, so minority classes (Fear, Disgust, Anger) are drawn more often per epoch, each time with fresh augmentation. Built on top of the AdamW + cosine annealing + clean validation split configuration.
+
+| Test set | AdamW+Cosine | Oversampled | Change |
+| -------- | -----------: | -----------: | -----: |
+| RAF-DB only | 81.91% | 80.25% | −1.66 |
+| AffectNet only | 70.87% | 71.87% | +1.00 |
+| **Combined** | **77.08%** | 76.58% | −0.50 |
+| Macro recall (combined) | 72.4% | **73.55%** | +1.15 |
+
+**Per-class recall, RAF-DB test:**
+| Emotion | AdamW+Cosine | Oversampled | Change |
+| ------- | -----------: | -----------: | -----: |
+| Surprise | 85.41% | 264/329 (80.24%) | −5.17 |
+| Fear | 48.65% | 35/74 (47.30%) | −1.35 |
+| Disgust | 41.88% | 77/160 (48.12%) | +6.24 |
+| Happiness | 92.15% | 1,039/1,185 (87.68%) | −4.47 |
+| Sadness | 77.82% | 367/478 (76.78%) | −1.04 |
+| Anger | 69.14% | 121/162 (74.69%) | +5.55 |
+| Neutral | 81.32% | 559/680 (82.21%) | +0.89 |
+
+**Per-class recall, AffectNet test:**
+| Emotion | AdamW+Cosine | Oversampled | Change |
+| ------- | -----------: | -----------: | -----: |
+| Surprise | 73.92% | 338/464 (72.84%) | −1.08 |
+| Fear | 70.82% | 234/305 (76.72%) | +5.90 |
+| Disgust | 62.62% | 215/321 (66.98%) | +4.36 |
+| Happiness | 90.48% | 336/399 (84.21%) | −6.27 |
+| Sadness | 60.51% | 164/276 (59.42%) | −1.09 |
+| Anger | 63.64% | 267/374 (71.39%) | +7.75 |
+| Neutral | 66.80% | 163/250 (65.20%) | −1.60 |
+
+**Per-class recall, combined test:**
+| Emotion | AdamW+Cosine | Oversampled | Change |
+| ------- | -----------: | -----------: | -----: |
+| Surprise | 78.69% | 75.91% | −2.78 |
+| Fear | 66.49% | 70.98% | +4.49 |
+| Disgust | 55.72% | 60.71% | +4.99 |
+| Happiness | 91.73% | 86.81% | −4.92 |
+| Sadness | 71.49% | 70.42% | −1.07 |
+| Anger | 65.30% | 72.39% | +7.09 |
+| Neutral | 77.42% | 77.63% | +0.21 |
+
+**Findings:** 
+- Oversampling traded raw accuracy for class balance. 
+- Anger improved most consistently across both datasets (+5.55 RAF-DB, +7.75 AffectNet). 
+- Disgust improved on both datasets (+6.24 RAF-DB, +4.36 AffectNet), its best result to date (60.71% combined, up from 30.6% in the earliest architecture-only runs).
+- Fear's gain was concentrated in AffectNet (+5.90); the RAF-DB change (−1.35).
+- The cost fell almost entirely on Happiness (−4.47 RAF-DB, −6.27 AffectNet), which remains strong overall (86.81% combined). 
+- Macro recall improved (72.4% → 73.55%), indicating better-balanced performance despite the small drop in raw accuracy (−0.50).
+
+### FIX QUEUE in the camera.py
+emotion_history = deque(maxlen=5)
+
+That is one global queue for everybody.
+
+So imagine:
+
+Frame 1:
+Person A → Anger
+Person B → Happiness
+
+emotion_history = [Anger, Happiness]
+
+Frame 2:
+Person A → Anger
+Person B → Neutral
+
+emotion_history = [Anger, Happiness, Anger, Neutral]
+
+Then this:
+
+stable_emotion = Counter(emotion_history).most_common(1)[0][0]

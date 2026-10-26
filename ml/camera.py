@@ -7,7 +7,11 @@ import numpy as np
 import cv2 as cv #import the opencv library 
 import torch
 from ultralytics import YOLO
-from emotion_detection.emotion_cnn import EmotionCNN
+import sys
+from pathlib import Path
+PROJECT_ROOT = Path(__file__).resolve().parents[1]
+sys.path.insert(0, str(PROJECT_ROOT))
+from ml.emotion_detection.model.emotion_cnn import EmotionCNN
 # from emotion_detection.data.dataset_loader import train_dataset
 from torchvision import transforms
 from collections import deque, Counter
@@ -21,8 +25,9 @@ facedetect_model = YOLO("/Users/laurenpalega/Documents/virtualfriend/ml/face_det
 emotion_model = EmotionCNN() 
 # Load the parameters learned during training (weights and baises)
 emotion_model.load_state_dict(  
-    torch.load( "/Users/laurenpalega/Documents/virtualfriend/ml/emotion_detection/emotion_cnn_raf_affectnet_best.pth", map_location="cpu")
+    torch.load("ml/emotion_detection/checkpoints/emotion_cnn_raf_affectnet_WeightedRandomSampler.pth", map_location="cpu")
 )
+
 # Put model in evaluation mode 
 emotion_model.eval() 
 
@@ -47,7 +52,8 @@ emotion_transform = transforms.Compose([ # Transform webcam frame to tensor shap
     )
 ])
 
-emotion_history = deque(maxlen=5)
+# Store a separate emotion history for each tracked face
+emotion_histories = {}
 
 def predict_emotion(face):
     """
@@ -77,7 +83,7 @@ def process_face(frame, face_detection_result):
     """
         Crop each detected face, predict its emotion, and draw the detection result.
     """
-    for box in face_detection_result.boxes: # For each detected bounding box/face  
+    for face_id, box in enumerate(face_detection_result.boxes): # For each detected bounding box/face  
         # Get Bounding box coordinates.
         x1, y1, x2, y2 = box.xyxy[0].tolist() # Unpack bounding box tensor -> coordinates -> 4 variables 
         x1, y1, x2, y2 = map(int, (x1, y1, x2, y2)) # Map bounding box coordinates as integers 
@@ -89,11 +95,19 @@ def process_face(frame, face_detection_result):
         if face.size == 0: 
             continue
 
-        # Pass face into predict emotion which runs data through CNN 
         emotion = predict_emotion(face)
-        # Majority vote on recent emotions 
-        emotion_history.append(emotion)
-        stable_emotion = Counter(emotion_history).most_common(1)[0][0] 
+
+        # Create a separate queue for this face
+        if face_id not in emotion_histories:
+            emotion_histories[face_id] = deque(maxlen=5)
+
+        # Update this face's emotion history only
+        emotion_histories[face_id].append(emotion)
+
+        # Majority vote for this face
+        stable_emotion = Counter(
+            emotion_histories[face_id]
+        ).most_common(1)[0][0] 
 
         # Draw face bounding box on frame
         cv.rectangle(
@@ -138,7 +152,12 @@ while True: # Loop so its not a static image, but a video feed
     frame = cv.flip(frame, 1) # Flip the frame horizontally using "1" (mirror image) 
 
     # --- Face Detection Processing ---
-    results = facedetect_model(frame) # Pass the frame to the model for inference 
+    # results = facedetect_model(frame) # Pass the frame to the model for inference 
+    results = facedetect_model(
+        frame,
+        conf=0.5,   # Minimum confidence
+        iou=0.5     # Overlap threshold for NMS
+    )
     face_detection_result = results[0] # [0] <- Resulta object for webcame frame
 
     # --- Emotion Detection Processing ---
