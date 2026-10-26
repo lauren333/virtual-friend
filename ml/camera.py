@@ -83,7 +83,16 @@ def process_face(frame, face_detection_result):
     """
         Crop each detected face, predict its emotion, and draw the detection result.
     """
-    for face_id, box in enumerate(face_detection_result.boxes): # For each detected bounding box/face  
+
+    if face_detection_result.boxes.id is None:
+        return
+
+    # Tracking IDs correspond to the detected boxes
+    tracking_ids = (
+        face_detection_result.boxes.id.int().cpu().tolist()
+    ) 
+
+    for box, face_id in zip(face_detection_result.boxes, tracking_ids): # For each detected bounding box/face  
         # Get Bounding box coordinates.
         x1, y1, x2, y2 = box.xyxy[0].tolist() # Unpack bounding box tensor -> coordinates -> 4 variables 
         x1, y1, x2, y2 = map(int, (x1, y1, x2, y2)) # Map bounding box coordinates as integers 
@@ -118,9 +127,9 @@ def process_face(frame, face_detection_result):
             2 # Thickness
         )
         
-        # Create emotion label
-        # label = f"Emotion: {emotion}"
-        label = f"Emotion: {stable_emotion}"
+        # Create emotion label 
+        # label = f"ID {face_id}: {stable_emotion}"
+        label = f"{stable_emotion}"
 
         # Draw emotion label above face
         cv.putText(
@@ -153,10 +162,13 @@ while True: # Loop so its not a static image, but a video feed
 
     # --- Face Detection Processing ---
     # results = facedetect_model(frame) # Pass the frame to the model for inference 
-    results = facedetect_model(
+    results = facedetect_model.track(
         frame,
+        persist=True,
+        tracker="bytetrack.yaml",
         conf=0.5,   # Minimum confidence
-        iou=0.5     # Overlap threshold for NMS
+        iou=0.5,     # Overlap threshold for NMS
+        verbose=False
     )
     face_detection_result = results[0] # [0] <- Resulta object for webcame frame
 
