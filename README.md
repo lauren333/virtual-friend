@@ -1,2 +1,2 @@
-# virtual-friend
-An AI companion that uses machine learning to recognise faces and facial expressions, responding through animations and dialogue.
+# virtual-friend: Real-Time Facial Expression Recognition
+Developing a computer vision system for real-time facial expression recognition using deep learning.
