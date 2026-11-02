@@ -35,6 +35,17 @@ ml/face_detection/runs/
 ml/face_detection/datasets/
 ml/face_detection/yolo11n.pt
 
+# =====================
+# CNN / ML 2 
+# =====================
+ml/emotion_detection/checkpoints/ 
+ml/emotion_detection/emotion_cnn.pth
+
 # (optional)
 # Ignore trained weights too
 # *.pt
+
+ml/emotion_detectionV2/
+ravdess_cropped_frames_128px/
+emotion_cnn_baseline.pth 
+emotion_cnn_raf_affectnet.pth
